@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "pyrseia"
+version = "0.1.0"
+description = ""
+authors = ["Tin Tvrtkovic <tinchester@gmail.com>"]
+packages = [
+    { include = "pyrseia", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+wrapt = "^1.12.1"
+cattrs = "^1.0.0"
+aiohttp = "^3.6.2"
+msgpack = "^1.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^4.6"
+mypy = "^0.770"
+pytest-asyncio = "^0.10.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
