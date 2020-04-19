@@ -18,6 +18,10 @@ class CalculatorRpc:
         ...
 
     @rpc
+    async def multiply(self, a: int, b: int) -> int:
+        ...
+
+    @rpc
     async def call_three(self, i: int, s: str, f: float) -> float:
         ...
 
@@ -35,6 +39,13 @@ class CalculatorRpc:
         return 1
 
 
+@client("")
+class Calc2Rpc:
+    @rpc
+    async def add(self, a: int, b: int) -> int:
+        ...
+
+
 serv = server(CalculatorRpc)
 
 
@@ -46,3 +57,8 @@ async def impl_test_call_one(i: int) -> int:
 @serv.implement(CalculatorRpc.add)
 async def add(a: int, b: int) -> int:
     return a + b
+
+
+@serv.implement(CalculatorRpc.multiply)
+async def multiply(a: int, b: int) -> int:
+    return a * b

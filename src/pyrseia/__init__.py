@@ -22,12 +22,7 @@ from .wire import Call
 converter = Converter()
 
 RR = TypeVar("RR")
-
-
-class RpcCallable0(Generic[RR]):
-    def __call__(self) -> Coroutine[Any, Any, RR]:
-        pass
-
+RT = TypeVar("RT")
 
 RA1 = TypeVar("RA1")
 RA2 = TypeVar("RA2")
@@ -36,13 +31,18 @@ RA4 = TypeVar("RA4")
 RA5 = TypeVar("RA5")
 
 
-class RpcCallable1(Generic[RA1, RR]):
-    def __call__(self, args: RA1) -> Coroutine[Any, Any, RR]:
+class RpcCallable0(Generic[RT, RR]):
+    def __call__(self: RT) -> Coroutine[Any, Any, RR]:
         pass
 
 
-class RpcCallable2(Generic[RA1, RA2, RR]):
-    def __call__(self, arg1: RA1, arg2: RA2) -> Coroutine[Any, Any, RR]:
+class RpcCallable1(Generic[RT, RA1, RR]):
+    def __call__(self: RT, args: RA1) -> Coroutine[Any, Any, RR]:
+        pass
+
+
+class RpcCallable2(Generic[RT, RA1, RA2, RR]):
+    def __call__(self: RT, arg1: RA1, arg2: RA2) -> Coroutine[Any, Any, RR]:
         pass
 
 
@@ -78,6 +78,7 @@ def client(url: str) -> Callable[[Type], Type]:
     return inner
 
 
+BT = TypeVar("BT")
 R = TypeVar("R")
 A1 = TypeVar("A1")
 A2 = TypeVar("A2")
@@ -87,21 +88,21 @@ A5 = TypeVar("A5")
 
 
 @overload
-def rpc(func: Callable[[Any], Coroutine[Any, Any, R]]) -> RpcCallable0[R]:
+def rpc(func: Callable[[BT], Coroutine[Any, Any, R]]) -> RpcCallable0[BT, R]:
     ...
 
 
 @overload
 def rpc(
-    func: Callable[[Any, A1], Coroutine[Any, Any, R]]
-) -> RpcCallable1[A1, R]:
+    func: Callable[[BT, A1], Coroutine[Any, Any, R]]
+) -> RpcCallable1[BT, A1, R]:
     ...
 
 
 @overload
 def rpc(
-    func: Callable[[Any, A1, A2], Coroutine[Any, Any, R]]
-) -> RpcCallable2[A1, A2, R]:
+    func: Callable[[BT, A1, A2], Coroutine[Any, Any, R]]
+) -> RpcCallable2[BT, A1, A2, R]:
     ...
 
 
@@ -153,14 +154,16 @@ SRA4 = TypeVar("SRA4")
 SRA5 = TypeVar("SRA5")
 SRR = TypeVar("SRR")
 
+CT = TypeVar("CT")
+
 
 @attr.s(slots=True)
-class Server:
+class Server(Generic[CT]):
     _registry: Dict[str, Callable] = attr.ib(factory=dict, init=False)
 
     @overload
     def implement(
-        self, c: RpcCallable0[SRR]
+        self, c: RpcCallable0[CT, SRR]
     ) -> Callable[
         [Callable[[], Coroutine[Any, Any, SRR]]],
         Callable[[], Coroutine[Any, Any, SRR]],
@@ -169,7 +172,7 @@ class Server:
 
     @overload
     def implement(
-        self, c: RpcCallable1[SRA1, SRR]
+        self, c: RpcCallable1[CT, SRA1, SRR]
     ) -> Callable[
         [Callable[[SRA1], Coroutine[Any, Any, SRR]]],
         Callable[[SRA1], Coroutine[Any, Any, SRR]],
@@ -178,7 +181,7 @@ class Server:
 
     @overload
     def implement(
-        self, c: RpcCallable2[SRA1, SRA2, SRR]
+        self, c: RpcCallable2[CT, SRA1, SRA2, SRR]
     ) -> Callable[
         [Callable[[SRA1, SRA2], Coroutine[Any, Any, SRR]]],
         Callable[[SRA1, SRA2], Coroutine[Any, Any, SRR]],
@@ -229,5 +232,8 @@ class Server:
         return dumps(converter.unstructure(res))
 
 
-def server(client: Type) -> Server:
+T = TypeVar("T")
+
+
+def server(client: Type[T]) -> Server[T]:
     return Server()
