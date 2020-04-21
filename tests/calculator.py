@@ -1,12 +1,11 @@
 from typing import Optional
 
-from pyrseia import client, rpc, server
+from pyrseia import rpc
 
 
-@client("http://localhost:8000")
-class CalculatorRpc:
+class Calculator:
     @rpc
-    async def call_none(self) -> None:
+    async def call_none(self) -> int:
         ...
 
     @rpc
@@ -39,26 +38,7 @@ class CalculatorRpc:
         return 1
 
 
-@client("")
 class Calc2Rpc:
     @rpc
     async def add(self, a: int, b: int) -> int:
         ...
-
-
-serv = server(CalculatorRpc)
-
-
-@serv.implement(CalculatorRpc.call_one)
-async def impl_test_call_one(i: int) -> int:
-    return i
-
-
-@serv.implement(CalculatorRpc.add)
-async def add(a: int, b: int) -> int:
-    return a + b
-
-
-@serv.implement(CalculatorRpc.multiply)
-async def multiply(a: int, b: int) -> int:
-    return a * b
