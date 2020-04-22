@@ -17,7 +17,7 @@ from typing import (
 import attr
 from wrapt import decorator  # type: ignore
 
-from ._client import (
+from ._api import (
     RpcCallable0,
     RpcCallable1,
     RpcCallable2,

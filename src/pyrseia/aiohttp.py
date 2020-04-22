@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
-from typing import Any, AsyncContextManager, Optional
+from typing import Any, AsyncContextManager, AsyncGenerator, Optional
 
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.web import Application, Request, Response, post
 from cattr import Converter
 from msgpack import dumps, loads
 
+from . import ClientAdapter
 from ._server import Server
 from .wire import Call
 
@@ -14,9 +15,9 @@ converter = Converter()
 
 def aiohttp_client_adapter(
     url: str, timeout: Optional[int] = None, method="POST"
-) -> AsyncContextManager:
+) -> AsyncContextManager[ClientAdapter]:
     @asynccontextmanager
-    async def aiohttp_adapter():
+    async def aiohttp_adapter() -> AsyncGenerator[ClientAdapter, None]:
         session = ClientSession()
         client_timeout = ClientTimeout(total=timeout)
         req_method = getattr(session, method.lower())

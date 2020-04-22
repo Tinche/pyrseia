@@ -2,7 +2,7 @@
 from pyrseia import server
 from aiohttp.web import Request
 
-from .calculator import Calculator
+from ..calculator import Calculator
 
 serv = server(Calculator, ctx_cls=Request)
 
