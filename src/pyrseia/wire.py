@@ -1,10 +1,10 @@
 """Dealing with data on the wire."""
-from typing import Any
+from typing import Any, Tuple
 
 import attr
 
 
-@attr.s(slots=True)
+@attr.s(slots=True, frozen=True)
 class Call:
     name: str = attr.ib()
-    args: Any = attr.ib()
+    args: Tuple[Any, ...] = attr.ib()

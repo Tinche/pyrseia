@@ -9,8 +9,12 @@ C = TypeVar("C")
 
 @fixture
 def calculator_server_creator() -> Callable[[Type[C]], Server[Calculator, C]]:
-    def create_server(ctx_cls: Type[C]) -> Server[Calculator, C]:
-        serv: Server[Calculator, C] = server(Calculator, ctx_cls=ctx_cls)
+    def create_server(
+        ctx_cls: Type[C], middleware=[]
+    ) -> Server[Calculator, C]:
+        serv: Server[Calculator, C] = server(
+            Calculator, ctx_cls=ctx_cls, middleware=middleware
+        )
 
         @serv.implement(Calculator.call_one)
         async def impl_test_call_one(i: int) -> int:

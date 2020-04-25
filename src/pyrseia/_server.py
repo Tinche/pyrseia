@@ -1,13 +1,14 @@
 from inspect import getfullargspec
 from typing import (
     Any,
-    AsyncContextManager,
     Awaitable,
     Callable,
     Coroutine,
     Dict,
     Generic,
     List,
+    Optional,
+    Sequence,
     Type,
     TypeVar,
     Union,
@@ -40,6 +41,8 @@ SRR = TypeVar("SRR")
 IT = TypeVar("IT")
 ServerInputAdapter = Callable[[IT], Call]
 ServerOutputAdapter = Callable[[Any], Awaitable]
+NextMiddleware = Callable[[CTXT, Call], Awaitable[Any]]
+Middleware = Callable[[CTXT, Call, NextMiddleware[CTXT]], Any]
 
 
 @attr.s(slots=True, frozen=True)
@@ -47,7 +50,27 @@ class Server(Generic[CT, CTXT]):
     # _input_adapter: ServerInputAdapter[IT] = attr.ib()
     # _output_adapter: ServerOutputAdapter = attr.ib()
     _registry: Dict[str, Callable] = attr.ib(factory=dict, init=False)
-    _middleware: List[AsyncContextManager] = attr.ib(factory=list)
+    _middleware: Sequence[Middleware] = attr.ib(factory=list)
+    _middleware_chain: Optional[
+        Callable[[CTXT, Call], Awaitable[Any]]
+    ] = attr.ib(init=False, repr=False, default=None)
+
+    def __attrs_post_init__(self):
+        if self._middleware:
+
+            async def next_call(req_ctx, call):
+                handler = self._registry[call.name]
+                return await handler(req_ctx, *call.args)
+
+            n = next_call
+
+            for mid in reversed(self._middleware):
+
+                async def next_call(req_ctx, call, _n=n, middleware=mid):  # type: ignore
+                    return await middleware(req_ctx, call, _n)
+
+                n = next_call
+            object.__setattr__(self, "_middleware_chain", n)
 
     @overload
     def implement(
@@ -182,16 +205,22 @@ class Server(Generic[CT, CTXT]):
         handler = self._registry.get(call.name)
         if handler is None:
             raise ValueError("Handler not found.")
-        res = await handler(req_ctx, *call.args)
+
+        if self._middleware_chain is not None:
+            res = await self._middleware_chain(req_ctx, call)
+        else:
+            res = await handler(req_ctx, *call.args)
 
         return res
 
 
 T = TypeVar("T")
-V = TypeVar("V")
 
 
 def server(
-    client: Type[T], ctx_cls: Union[Type[V], Type[None]] = type(None),
-) -> Server[T, V]:
-    return Server()
+    client: Type[T],
+    ctx_cls: Union[Type[CTXT], Type[None]] = type(None),
+    *,
+    middleware: List[Middleware[CTXT]] = [],
+) -> Server[T, CTXT]:
+    return Server(middleware=middleware)
