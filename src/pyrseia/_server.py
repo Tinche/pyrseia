@@ -47,8 +47,6 @@ Middleware = Callable[[CTXT, Call, NextMiddleware[CTXT]], Any]
 
 @attr.s(slots=True, frozen=True)
 class Server(Generic[CT, CTXT]):
-    # _input_adapter: ServerInputAdapter[IT] = attr.ib()
-    # _output_adapter: ServerOutputAdapter = attr.ib()
     _registry: Dict[str, Callable] = attr.ib(factory=dict, init=False)
     _middleware: Sequence[Middleware] = attr.ib(factory=list)
     _middleware_chain: Optional[

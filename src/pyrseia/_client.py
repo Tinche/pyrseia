@@ -3,7 +3,6 @@ from typing import AsyncContextManager, Awaitable, Callable, Type, TypeVar
 from weakref import WeakKeyDictionary
 
 from cattr import Converter
-from msgpack import dumps, loads
 from wrapt import decorator  # type: ignore
 
 from .wire import Call
@@ -11,7 +10,7 @@ from .wire import Call
 converter = Converter()
 
 T = TypeVar("T")
-ClientAdapter = Callable[[bytes], Awaitable[bytes]]
+ClientAdapter = Callable[[Call, Type[T]], Awaitable[T]]
 
 _clients: WeakKeyDictionary = WeakKeyDictionary()
 
@@ -44,8 +43,8 @@ def _adjust_rpc(coro, sender: ClientAdapter):
 
     @decorator
     async def wrapper(wrapped, instance, args, kwargs):
-        payload = dumps(converter.unstructure(Call(coro.__name__, args)))
-        resp_payload = await sender(payload)
-        return converter.structure(loads(resp_payload), return_type)
+        call = Call(coro.__name__, args)
+        resp = await sender(call, return_type)
+        return resp
 
     return wrapper(coro)
