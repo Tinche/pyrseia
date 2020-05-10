@@ -1,13 +1,13 @@
 """Google services."""
 from asyncio import create_task
 from enum import IntEnum, unique
-from typing import AsyncContextManager, Optional, Type, TypeVar
+from typing import AsyncContextManager, List, Optional, Type, TypeVar
 
 import attr
 from aiohttp import ClientSession
 from cattr import Converter
 from jwt import encode
-from pendulum import DateTime
+from pendulum import DateTime, from_timestamp
 from ujson import loads
 
 from pyrseia import ClientAdapter, create_client, rpc
@@ -80,11 +80,68 @@ class ProductPurchase:
     purchaseType: Optional[PurchaseType] = attr.ib(default=None)
 
 
+@attr.s(slots=True, frozen=True)
+class VoidedPurchase:
+    @unique
+    class VoidedSource(IntEnum):
+        USER = 0
+        DEVELOPER = 1
+        GOOGLE = 2
+
+    @unique
+    class VoidedReason(IntEnum):
+        OTHER = 0
+        REMORSE = 1
+        NOT_RECEIVED = 2
+        DEFECTIVE = 3
+        ACCIDENTAL_PURCHASE = 4
+        FRAUD = 5
+        FRIENDLY_FRAUD = 6
+        CHARGEBACK = 7
+
+    kind: str = attr.ib()
+    purchaseToken: str = attr.ib()
+    purchaseTimeMillis: str = attr.ib()
+    voidedTimeMillis: str = attr.ib()
+    orderId: str = attr.ib()
+    voidedSource: VoidedSource = attr.ib()
+    voidedReason: VoidedReason = attr.ib()
+
+    @property
+    def purchase_time(self) -> DateTime:
+        return from_timestamp(float(self.purchaseTimeMillis) / 1000)
+
+    @property
+    def voided_time(self) -> DateTime:
+        return from_timestamp(float(self.voidedTimeMillis) / 1000)
+
+
+@attr.s(slots=True, frozen=True)
+class VoidedPurchasesResponse:
+    @attr.s(slots=True, frozen=True)
+    class TokenPagination:
+        nextPageToken: str = attr.ib()
+
+    voidedPurchases: List[VoidedPurchase] = attr.ib()
+    tokenPagination: Optional[TokenPagination] = attr.ib(default=None)
+
+
 class GooglePlayDeveloperApi:
     @rpc
     async def get_purchases_products(
         self, package_name: str, product_id: str, token: str
     ) -> ProductPurchase:
+        ...
+
+    @rpc
+    async def get_voided_purchases(
+        self,
+        package_name: str,
+        start_time: Optional[int],
+        end_time: Optional[int],
+        token: Optional[str],
+        type: int,
+    ) -> VoidedPurchasesResponse:
         ...
 
 
@@ -160,7 +217,10 @@ def google_client_network_adapter(
             if created_task:
                 task = None
 
-        url = f"{BASE_URL}/{call.args[0]}/purchases/products/{call.args[1]}/tokens/{call.args[2]}"
+        if call.name == "get_purchases_products":
+            url = f"{BASE_URL}/{call.args[0]}/purchases/products/{call.args[1]}/tokens/{call.args[2]}"
+        elif call.name == "get_voided_purchases":
+            url = f"{BASE_URL}/{call.args[0]}/purchases/voidedpurchases"
         try:
             resp = await invoke_api(session, token.access_token, url)
         except HttpError as exc:
