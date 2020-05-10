@@ -1,7 +1,7 @@
 """Google services."""
 from asyncio import create_task
 from enum import IntEnum, unique
-from typing import AsyncContextManager, List, Optional, Type, TypeVar
+from typing import AsyncContextManager, Dict, List, Optional, Type, TypeVar
 
 import attr
 from aiohttp import ClientSession
@@ -181,9 +181,14 @@ async def request_access_token(
         return converter.structure(loads(payload), AccessToken)
 
 
-async def invoke_api(session: ClientSession, token: str, url: str) -> bytes:
+async def invoke_api(
+    session: ClientSession,
+    token: str,
+    url: str,
+    query_params: Dict[str, str] = {},
+) -> bytes:
     async with session.get(
-        url, headers={"Authorization": f"Bearer {token}"}
+        url, params=query_params, headers={"Authorization": f"Bearer {token}"}
     ) as resp:
         resp_payload = await resp.read()
         if resp.status != 200:
@@ -219,10 +224,22 @@ def google_client_network_adapter(
 
         if call.name == "get_purchases_products":
             url = f"{BASE_URL}/{call.args[0]}/purchases/products/{call.args[1]}/tokens/{call.args[2]}"
+            query_params: Dict[str, str] = {}
         elif call.name == "get_voided_purchases":
             url = f"{BASE_URL}/{call.args[0]}/purchases/voidedpurchases"
+            query_params = {}
+            if call.args[1] is not None:
+                query_params["startTime"] = str(call.args[1])
+            if call.args[2] is not None:
+                query_params["endTime"] = str(call.args[2])
+            if call.args[3] is not None:
+                query_params["token"] = str(call.args[3])
+            if call.args[4] is not None:
+                query_params["type"] = str(call.args[4])
         try:
-            resp = await invoke_api(session, token.access_token, url)
+            resp = await invoke_api(
+                session, token.access_token, url, query_params=query_params
+            )
         except HttpError as exc:
             if exc.status_code == 401:
                 # Refresh the access token.
